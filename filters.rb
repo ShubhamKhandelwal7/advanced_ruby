@@ -74,9 +74,9 @@ module MyModule
       before_option = filter_options['before_options'][0]
       after_option = filter_options['after_options'][0]
       @before_methods = [] if before_option[:only] && before_option[:only][0] != action_meth ||
-                                                  before_option[:except] && before_option[:except][0] == action_meth
+                              before_option[:except] && before_option[:except][0] == action_meth
       @after_methods = [] if after_option[:only] && after_option[:only][0] != action_meth ||
-                                                 after_option[:except] && after_option[:except][0] == action_meth
+                             after_option[:except] && after_option[:except][0] == action_meth
     end
   end
 end
