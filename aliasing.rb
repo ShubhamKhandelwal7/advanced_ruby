@@ -6,19 +6,15 @@ module MyModule
   end
 
   def chained_aliasing(target_meth, alias_val)
-    create_aliasing_methods(target_meth, alias_val)
-  end
-  
-  def create_aliasing_methods(target_meth, alias_val)
     target_meth_without_schar = target_meth.to_s.gsub(REGEX_SPECIAL_CHAR, '')
     special_char = target_meth.to_s.match(REGEX_SPECIAL_CHAR)
     special_char = '' if special_char && alias_val[-1] == special_char[1]
     with_method_name = "#{target_meth_without_schar}_with_#{alias_val}#{special_char}"
     without_method_name = "#{target_meth_without_schar}_without_#{alias_val}#{special_char}"
-    alias_methods(target_meth, with_method_name, without_method_name)
+    create_aliasing_methods(target_meth, with_method_name, without_method_name)
   end
 
-  def alias_methods(target_meth, with_method_name, without_method_name)
+  def create_aliasing_methods(target_meth, with_method_name, without_method_name)
     alias_method without_method_name, target_meth
     alias_method target_meth, with_method_name
     check_access_specifier(target_meth, with_method_name, without_method_name)
