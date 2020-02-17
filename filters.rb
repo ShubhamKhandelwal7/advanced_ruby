@@ -9,24 +9,13 @@ module MyModule
   end
 
   def before_filter(*methods, **options)
-    # methods.each do |meth|
       validate_methods(methods)
-      # check_if_private?(meth) if new.respond_to?(meth, true)
-    # end
-    # @before_methods = methods
-    # p methods
-    # p filter_methods
     filter_methods['before_methods'] << methods
-    # p filter_methods
     filter_options['before_options'] << options
   end
 
   def after_filter(*methods, **options)
-    # methods.each do |meth|
       validate_methods(methods)
-      # check_if_private?(meth) if new.respond_to?(meth, true)
-    # end
-    # @after_methods = methods
     filter_methods['after_methods'] << methods
     filter_options['after_options'] << options
   end
@@ -39,21 +28,6 @@ module MyModule
     @filter_options ||= {'before_options' => [], 'after_options' => []}
   end
 
-  # def before_option
-  #   @before_option
-  # end
-
-  # def before_methods
-  #   @before_methods
-  # end
-
-  # def after_methods
-  #   @after_methods
-  # end
-
-  # def after_option
-  #   @after_option
-  # end
   def validate_methods(methods)
     methods.each do |meth|
     if new.respond_to?(meth, true)
@@ -62,33 +36,17 @@ module MyModule
   end
   end
 
-  # def check_if_private?(meth)
-  #   raise "#{meth} is not private" unless private_method_defined?(meth)
-  # end
-
   def action_methods(*arguments)
     @action_methods = arguments
-    # p filter_methods['before_methods'][0]
     FilterModule.execute_method(arguments)
   end
 
   def method_added(name)
-    # p self
-    if  defined?(filter_methods['before_methods'][0][0])#(@before_methods) respond_to?('before_filter', true) &&
-      # p defined?(filter_methods['before_methods'][0][0])
+    if  defined?(filter_methods['before_methods'][0][0])
       validate_methods(filter_methods['before_methods'][0]) unless filter_methods['before_methods'][0].include?(name)
-      # self.filter_methods['before_methods'][0].each do |before_method|
-        # break if name == before_method
-        # validate_method(before_method)
-        # check_if_private?(before_method) if new.respond_to?(before_method, true)
-      # end
     end
-    if defined?(filter_methods['after_methods'][0][0])#(@after_methods)
-      # self.filter_methods['after_methods'][0].each do |after_method|
-        # break if name == after_method
+    if defined?(filter_methods['after_methods'][0][0])
         validate_methods(filter_methods['after_methods'][0]) unless filter_methods['after_methods'][0].include?(name)
-        # check_if_private?(after_method) if new.respond_to?(after_method, true)
-      # end
     end
   end
 
@@ -102,10 +60,8 @@ module MyModule
     def self.create_dynamic_method(action_meth)
       define_method(action_meth) do
         filter_methods = self.class.filter_methods
-        # p filter_methods
         filter_options = self.class.filter_options
         update_methods(action_meth, filter_methods, filter_options)
-        # p @before_methods
         @before_methods.each { |meth| method(meth).call }
         super()
         @after_methods.each { |meth| method(meth).call }
@@ -114,7 +70,6 @@ module MyModule
 
     def update_methods(action_meth, filter_methods, filter_options)
       @before_methods = filter_methods['before_methods'][0]
-      # p filter_methods['before_methods'][0]
       @after_methods = filter_methods['after_methods'][0]
       before_option = filter_options['before_options'][0]
       after_option = filter_options['after_options'][0]
