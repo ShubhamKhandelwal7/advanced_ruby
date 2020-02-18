@@ -35,12 +35,12 @@ module MyModule
 
   def validate_methods(methods)
     methods.each do |meth|
-      raise "#{meth} is not private" if !meth.is_a?(Proc) && method_defined?(meth)
+      raise "#{meth} is neither a Private method nor a Proc" if !meth.is_a?(Proc) && method_defined?(meth)
     end
   end
 
   def action_method_list
-    @action_method ||= []
+    @action_method_list ||= []
   end
 
   def action_methods(*arguments)
@@ -54,23 +54,19 @@ module MyModule
   module FilterModule
     def self.execute_method(action_meth)
       define_method(action_meth) do
-        methods_to_call(self.class.before_methods, action_meth)
+        call_filter_methods(self.class.before_methods, action_meth)
         super()
-        methods_to_call(self.class.after_methods, action_meth)
+        call_filter_methods(self.class.after_methods, action_meth)
       end
     end
 
-    def methods_to_call(method_series, action_meth)
+    def call_filter_methods(method_series, action_meth)
       method_series.each_pair do |meth, option|
-        call_methods(meth, option, action_meth)
-      end
-    end
-
-    def call_methods(meth, option, action_meth)
-      if meth.is_a?(Proc) && valid_filter_method?(action_meth, option)
-        meth.call
-      elsif valid_filter_method?(action_meth, option)
-        method(meth).call
+        if meth.is_a?(Proc) && valid_filter_method?(action_meth, option)
+          meth.call
+        elsif valid_filter_method?(action_meth, option)
+          method(meth).call
+        end
       end
     end
 
