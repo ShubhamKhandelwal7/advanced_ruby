@@ -76,15 +76,15 @@ module MyModule
     def self.execute_method(action_meth)
       define_method(action_meth) do
         self.class.before_methods.each_pair do |meth, option|
-          call_methods(meth, option, action_meth)
+          call_method(meth, option, action_meth)
         end
         super()
         self.class.after_methods.each_pair do |meth, option|
-          call_methods(meth, option, action_meth)
+          call_method(meth, option, action_meth)
         end
       end
 
-      def call_methods(meth, option, action_meth)
+      def call_method(meth, option, action_meth)
         meth.call if meth.is_a?(Proc) && check_condition(action_meth, option)
         method(meth).call if !meth.is_a?(Proc) && check_condition(action_meth, option)
       end
