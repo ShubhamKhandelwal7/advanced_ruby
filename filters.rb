@@ -39,12 +39,12 @@ module MyModule
     end
   end
 
-  def action_method_list
-    @action_method_list ||= []
+  def action_methods_list
+    @action_methods_list ||= []
   end
 
   def action_methods(*arguments)
-    action_method.concat(arguments)
+    action_methods_list.concat(arguments)
   end
 
   def method_added(name)
