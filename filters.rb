@@ -55,9 +55,9 @@ module MyModule
     def self.execute_method(action_meth)
       define_method(action_meth) do
         call_filter_methods(self.class.before_methods, action_meth)
-        super()
+        default_return_value = super()
         call_filter_methods(self.class.after_methods, action_meth)
-        "test return string of method: #{action_meth}"
+        default_return_value # "test return string of method: #{action_meth}"
       end
     end
 
