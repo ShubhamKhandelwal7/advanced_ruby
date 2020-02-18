@@ -48,7 +48,7 @@ module MyModule
   end
 
   def method_added(name)
-    FilterModule.execute_method(name) if action_method_list.include?(name)
+    FilterModule.execute_method(name) if action_methods_list.include?(name)
   end
 
   module FilterModule
