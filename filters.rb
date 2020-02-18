@@ -9,31 +9,45 @@ module MyModule
   end
 
   def before_filter(*methods, **options)
-      validate_methods(methods)
-    filter_methods['before_methods'] << methods
-    filter_options['before_options'] << options
+    validate_methods(methods)
+    collect_before_methods(methods, options)
   end
 
   def after_filter(*methods, **options)
-      validate_methods(methods)
-    filter_methods['after_methods'] << methods
-    filter_options['after_options'] << options
+    validate_methods(methods)
+    collect_after_methods(methods, options)
   end
 
-  def filter_methods
-    @filter_methods ||= {'before_methods' => [], 'after_methods' => []}
+  def collect_before_methods(methods, options)
+    methods.each do |meth|
+      before_methods[meth]
+      before_methods[meth][:only].concat(options[:only]) if options[:only]
+      before_methods[meth][:except].concat(options[:except]) if options[:except]
+    end
   end
 
-  def filter_options
-    @filter_options ||= {'before_options' => [], 'after_options' => []}
+  def collect_after_methods(methods, options)
+    methods.each do |meth|
+      after_methods[meth]
+      after_methods[meth][:only].concat(options[:only]) if options[:only]
+      after_methods[meth][:except].concat(options[:except]) if options[:except]
+    end
+  end
+
+  def before_methods
+    @before_methods ||= Hash.new { |hash, key| hash[key] = { only: [], except: [] }}
+  end
+
+  def after_methods
+    @after_methods ||= Hash.new { |hash, key| hash[key] = { only: [], except: [] }}
   end
 
   def validate_methods(methods)
     methods.each do |meth|
-    if new.respond_to?(meth, true)
-      raise "#{meth} is not private" unless private_method_defined?(meth)
+      if new.respond_to?(meth, true)
+        raise "#{meth} is not private" unless private_method_defined?(meth)
+      end
     end
-  end
   end
 
   def action_methods(*arguments)
@@ -42,11 +56,11 @@ module MyModule
   end
 
   def method_added(name)
-    if  defined?(filter_methods['before_methods'][0][0])
-      validate_methods(filter_methods['before_methods'][0]) unless filter_methods['before_methods'][0].include?(name)
+    if defined?(filter_methods[:before_methods][0][0])
+      validate_methods(filter_methods[:before_methods][0]) unless filter_methods[:before_methods][0].include?(name)
     end
-    if defined?(filter_methods['after_methods'][0][0])
-        validate_methods(filter_methods['after_methods'][0]) unless filter_methods['after_methods'][0].include?(name)
+    if defined?(filter_methods[:after_methods][0][0])
+      validate_methods(filter_methods[:after_methods][0]) unless filter_methods[:after_methods][0].include?(name)
     end
   end
 
@@ -59,24 +73,19 @@ module MyModule
 
     def self.create_dynamic_method(action_meth)
       define_method(action_meth) do
-        filter_methods = self.class.filter_methods
-        filter_options = self.class.filter_options
-        update_methods(action_meth, filter_methods, filter_options)
-        @before_methods.each { |meth| method(meth).call }
+        self.class.before_methods.each_pair do |meth, option|
+          method(meth).call if check_condition(action_meth, option)
+        end
         super()
-        @after_methods.each { |meth| method(meth).call }
+        self.class.after_methods.each_pair do |meth, option|
+          method(meth).call if check_condition(action_meth, option)
+        end
       end
-    end
-
-    def update_methods(action_meth, filter_methods, filter_options)
-      @before_methods = filter_methods['before_methods'][0]
-      @after_methods = filter_methods['after_methods'][0]
-      before_option = filter_options['before_options'][0]
-      after_option = filter_options['after_options'][0]
-      @before_methods = [] if before_option[:only] && before_option[:only][0] != action_meth ||
-                              before_option[:except] && before_option[:except][0] == action_meth
-      @after_methods = [] if after_option[:only] && after_option[:only][0] != action_meth ||
-                             after_option[:except] && after_option[:except][0] == action_meth
+      
+      def check_condition(action_meth, option)
+        ((option[:only].include?(action_meth) || option[:only].empty?) &&
+                               !option[:except].include?(action_meth))
+      end
     end
   end
 end
@@ -86,9 +95,9 @@ class MyClass
 
   action_methods :your_method
 
-  before_filter :foo , only: [:your_method]
-
-  action_methods  :my_method
+  before_filter :foo, :bar, only: [:your_method]
+  before_filter :baz
+  action_methods :my_method
 
   private def foo
     puts 'inside foo'
@@ -102,6 +111,10 @@ class MyClass
     puts 'inside baz'
   end
 
+  private def maz
+    puts 'inside maz'
+  end
+
   def my_method
     puts 'inside my_method'
   end
@@ -109,9 +122,9 @@ class MyClass
   def your_method
     puts 'inside your_method'
   end
-  
-  action_methods  :our_method
-  after_filter :baz, :bar, except: [:my_method]
+
+  action_methods :our_method
+  after_filter  :maz, except: [:my_method]
 
   def our_method
     puts 'inside our_method'
@@ -125,6 +138,7 @@ end
 m = MyClass.new
 m.my_method
 # ---Output----
+# inside baz
 # inside my_method
 
 p '-----------------------'
@@ -132,9 +146,10 @@ p '-----------------------'
 m.your_method
 # ---Output----
 # inside foo
-# inside your_method
-# inside baz
 # inside bar
+# inside baz
+# inside your_method
+# inside maz
 
 p '-----------------------'
 
@@ -146,9 +161,9 @@ p '-----------------------'
 
 m.our_method
 # ---Output----
-# inside our_method
 # inside baz
-# inside bar
+# inside our_method
+# inside maz
 
 
 
@@ -184,7 +199,90 @@ m.our_method
 
 
 
+# module MyModule
+#   def self.extended(base)
+#     base.prepend(FilterModule)
+#   end
 
+#   def self.included(base)
+#     base.extend(MyModule)
+#     base.prepend(FilterModule)
+#   end
+
+#   def before_filter(*methods, **options)
+#     validate_methods(methods)
+#     filter_methods[:before_methods] << methods
+#     filter_options[:before_options] << options
+#   end
+
+#   def after_filter(*methods, **options)
+#     validate_methods(methods)
+#     filter_methods[:after_methods] << methods
+#     filter_options[:after_options] << options
+#   end
+
+#   def filter_methods
+#     @filter_methods ||= { before_methods: [], after_methods: [] }
+#   end
+
+#   def filter_options
+#     @filter_options ||= { before_options: [], after_options: [] }
+#   end
+
+#   def validate_methods(methods)
+#     methods.each do |meth|
+#       if new.respond_to?(meth, true)
+#         raise "#{meth} is not private" unless private_method_defined?(meth)
+#       end
+#     end
+#   end
+
+#   def action_methods(*arguments)
+#     @action_methods = arguments
+#     FilterModule.execute_method(arguments)
+#   end
+
+#   def method_added(name)
+#     if defined?(filter_methods[:before_methods][0][0])
+#       validate_methods(filter_methods[:before_methods][0]) unless filter_methods[:before_methods][0].include?(name)
+#     end
+#     if defined?(filter_methods[:after_methods][0][0])
+#       validate_methods(filter_methods[:after_methods][0]) unless filter_methods[:after_methods][0].include?(name)
+#     end
+#   end
+
+#   module FilterModule
+#     def self.execute_method(action_methods)
+#       action_methods.each do |action_meth|
+#         create_dynamic_method(action_meth)
+#       end
+#     end
+
+#     def self.create_dynamic_method(action_meth)
+#       define_method(action_meth) do
+#         filter_methods = self.class.filter_methods
+#         filter_options = self.class.filter_options
+#         update_methods(action_meth, filter_methods, filter_options)
+#         p filter_methods
+#         p filter_options
+#         @before_methods.each { |meth| method(meth).call }
+#         super()
+#         @after_methods.each { |meth| method(meth).call }
+#       end
+#     end
+
+#     def update_methods(action_meth, filter_methods, filter_options)
+#       @before_methods = filter_methods[:before_methods][0]
+#       @after_methods = filter_methods[:after_methods][0]
+#       before_option = filter_options[:before_options][0]
+#       after_option = filter_options[:after_options][0]
+#       @before_methods = [] if before_option[:only] && before_option[:only][0] != action_meth ||
+#                               before_option[:except] && before_option[:except][0] == action_meth
+#       @after_methods = [] if after_option[:only] && after_option[:only][0] != action_meth ||
+#                              after_option[:except] && after_option[:except][0] == action_meth
+#     end
+#   end
+# end
 
 
 
