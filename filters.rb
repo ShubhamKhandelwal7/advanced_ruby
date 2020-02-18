@@ -10,27 +10,18 @@ module MyModule
 
   def before_filter(*methods, **options)
     validate_methods(methods)
-    collect_before_methods(methods, options)
+    collect_methods(before_methods, methods, options)
   end
 
   def after_filter(*methods, **options)
     validate_methods(methods)
-    collect_after_methods(methods, options)
+    collect_methods(after_methods, methods, options)
   end
 
-  def collect_before_methods(methods, options)
+  def collect_methods(filter_method, methods, options)
     methods.each do |meth|
-      before_methods[meth]
-      before_methods[meth][:only].concat(options[:only]) if options[:only]
-      before_methods[meth][:except].concat(options[:except]) if options[:except]
-    end
-  end
-
-  def collect_after_methods(methods, options)
-    methods.each do |meth|
-      after_methods[meth]
-      after_methods[meth][:only].concat(options[:only]) if options[:only]
-      after_methods[meth][:except].concat(options[:except]) if options[:except]
+      filter_method[meth][:only].concat(options[:only] ||= [])
+      filter_method[meth][:except].concat(options[:except] ||= [])
     end
   end
 
@@ -44,11 +35,7 @@ module MyModule
 
   def validate_methods(methods)
     methods.each do |meth|
-      unless meth.is_a?(Proc)
-        if method_defined?(meth, true)
-          raise "#{meth} is not private" unless private_method_defined?(meth)
-        end
-      end
+        raise "#{meth} is not private" if !meth.is_a?(Proc) && method_defined?(meth)
     end
   end
 
@@ -61,12 +48,6 @@ module MyModule
   end
 
   def method_added(name)
-    if defined?(before_methods) && !defined?(after_methods)
-      validate_methods(Array(name)) unless before_methods.keys.include?(name)
-    end
-    if defined?(after_methods) && !defined?(before_methods)
-      validate_methods(Array(name)) unless after_methods.keys.include?(name)
-    end
     if action_method.include?(name)
       FilterModule.execute_method(name)
     end
@@ -76,17 +57,20 @@ module MyModule
     def self.execute_method(action_meth)
       define_method(action_meth) do
         self.class.before_methods.each_pair do |meth, option|
-          call_method(meth, option, action_meth)
+          call_methods(meth, option, action_meth)
         end
         super()
         self.class.after_methods.each_pair do |meth, option|
-          call_method(meth, option, action_meth)
+          call_methods(meth, option, action_meth)
         end
       end
 
-      def call_method(meth, option, action_meth)
-        meth.call if meth.is_a?(Proc) && check_condition(action_meth, option)
-        method(meth).call if !meth.is_a?(Proc) && check_condition(action_meth, option)
+      def call_methods(meth, option, action_meth)
+        if meth.is_a?(Proc) && check_condition(action_meth, option)
+          meth.call
+        elsif check_condition(action_meth, option)
+          method(meth).call
+        end
       end
 
       def check_condition(action_meth, option)
