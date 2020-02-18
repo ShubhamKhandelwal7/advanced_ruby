@@ -35,11 +35,11 @@ module MyModule
 
   def validate_methods(methods)
     methods.each do |meth|
-        raise "#{meth} is not private" if !meth.is_a?(Proc) && method_defined?(meth)
+      raise "#{meth} is not private" if !meth.is_a?(Proc) && method_defined?(meth)
     end
   end
 
-  def action_method
+  def action_method_list
     @action_method ||= []
   end
 
@@ -48,35 +48,35 @@ module MyModule
   end
 
   def method_added(name)
-    if action_method.include?(name)
-      FilterModule.execute_method(name)
-    end
+    FilterModule.execute_method(name) if action_method_list.include?(name)
   end
 
   module FilterModule
     def self.execute_method(action_meth)
       define_method(action_meth) do
-        self.class.before_methods.each_pair do |meth, option|
-          call_methods(meth, option, action_meth)
-        end
+        methods_to_call(self.class.before_methods, action_meth)
         super()
-        self.class.after_methods.each_pair do |meth, option|
-          call_methods(meth, option, action_meth)
-        end
+        methods_to_call(self.class.after_methods, action_meth)
       end
+    end
 
-      def call_methods(meth, option, action_meth)
-        if meth.is_a?(Proc) && check_condition(action_meth, option)
-          meth.call
-        elsif check_condition(action_meth, option)
-          method(meth).call
-        end
+    def methods_to_call(method_series, action_meth)
+      self.class.method_series.each_pair do |meth, option|
+        call_methods(meth, option, action_meth)
       end
+    end
 
-      def check_condition(action_meth, option)
-        ((option[:only].include?(action_meth) || option[:only].empty?) &&
-                               !option[:except].include?(action_meth))
+    def call_methods(meth, option, action_meth)
+      if meth.is_a?(Proc) && valid_filter_method?(action_meth, option)
+        meth.call
+      elsif valid_filter_method?(action_meth, option)
+        method(meth).call
       end
+    end
+
+    def valid_filter_method?(action_meth, option)
+      ((option[:only].include?(action_meth) || option[:only].empty?) &&
+      !option[:except].include?(action_meth))
     end
   end
 end
