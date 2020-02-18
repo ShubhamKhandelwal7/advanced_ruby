@@ -57,6 +57,7 @@ module MyModule
         call_filter_methods(self.class.before_methods, action_meth)
         super()
         call_filter_methods(self.class.after_methods, action_meth)
+        'test return string'
       end
     end
 
