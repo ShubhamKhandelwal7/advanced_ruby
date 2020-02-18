@@ -61,7 +61,7 @@ module MyModule
     end
 
     def methods_to_call(method_series, action_meth)
-      self.class.method_series.each_pair do |meth, option|
+      method_series.each_pair do |meth, option|
         call_methods(meth, option, action_meth)
       end
     end
